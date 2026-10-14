@@ -34,20 +34,33 @@ No toque, tocar no campo continua ajustando a mira com a bola na mão ou movendo
 | Mandar a dupla correr | R | L |
 | Cruzar tacos aos 100 | X | K |
 
-P pausa. V reivindica a vitória da dupla dos tacos quando a bola fica no telhado. Os controles na tela permitem ajustar direção e força da rebatida; os botões de ação lançam usando a força escolhida. Há botões direcionais de movimento para toque.
+P pausa. C (J1) ou M (J2) sobe/desce do telhado. Os controles na tela permitem ajustar direção e força da rebatida; os botões de ação lançam usando a força escolhida. Há botões direcionais de movimento para toque.
 
 Nos tacos, você pode mover os dois personagens manualmente, alternando o selecionado, ou mandar os dois para os círculos opostos. A dupla recebe 10 pontos quando ambos completam a troca. A posição do batedor e o tempo, a direção e a força da rebatida definem a trajetória.
 
 Na bolinha, mova seu personagem até a bola para pegá-la. Só quem está com ela pode lançar. Com a bola na mão, mova o mouse no campo para mirar livremente ou use o botão de alvo para mirar uma garrafa. Sem a bola, o clique direito manda o personagem selecionado até um ponto. No modo local, o mouse atende ao jogador escolhido; ambas as duplas têm teclado e botões de movimento.
 
-A bola tem velocidade, altura, quique e atrito. Não existe um cronômetro que devolve a bola automaticamente. A defesa precisa alcançar a bola. Uma garrafa só cai quando uma bola lançada passa por ela em baixa altura e nenhum batedor protege seu círculo. A bola rebatida pode ficar presa no telhado se chegar lá com altura suficiente.
+A bola tem velocidade, altura, quique e atrito. Não existe um cronômetro que devolve a bola automaticamente. A defesa precisa alcançar a bola. Uma garrafa só cai quando uma bola lançada passa por ela em baixa altura e nenhum batedor protege seu círculo. A bola rebatida pode ficar presa no telhado se chegar lá com altura suficiente. Isso **não dá vitória automática**: os batedores continuam correndo e pontuando até 100, depois precisam cruzar os tacos. A defesa pode usar o botão de subir (C para J1, M para J2), que leva o personagem ao local e anima a subida. Depois de recuperar, use o mesmo botão para descer; lançar do telhado é proibido.
+
+Pegar uma bola rebatida no ar, antes do primeiro toque no chão e dentro da altura de alcance das mãos, dá vitória à dupla da bola. Pegar depois de um quique ou recuperar no telhado não conta como essa vitória.
+
+Depois de coletar a bola, o lançador pode recuar, mas não avançar além da linha de coleta, que aparece pontilhada no campo. Essa regra vale para movimento por teclado, clique e bots. Uma nova rebatida libera a busca adiante e uma nova coleta define a próxima linha. Os bots lançam com 90–100% de força e param quando recolhem a bola. O atrito do lançamento foi reduzido para a bola conseguir atravessar a rua.
+
+A câmera continua no mesmo lugar, com desenho em perspectiva, paredes e telhados com profundidade, sombras no chão e altura da bola/lançador projetada acima do campo. É um visual 2,5D feito em Canvas, com altura na física.
 
 ## Limites atuais
 
 Protótipo 2D com física simplificada, solo ou duas pessoas no mesmo aparelho. Sem multiplayer online nem controle individual simultâneo de quatro pessoas. O computador move sua própria equipe; as equipes humanas têm movimento livre. Cada dupla mantém o placar ao trocar de função.
 
-## Validação
+## Validação atual
 
-`node --check game.js` verifica a sintaxe. Validado no Chromium: movimento por teclado, exposição da garrafa, lançamento carregado, direções e forças diferentes de rebatida, coleta manual, colisão e proteção de garrafas, pontuação sem duplicação, vitória no telhado, vitória com X, mira livre no solo e layout de 390 px. Ainda falta testar em celular físico.
+Execute:
 
-Controles de mouse validados no Chromium: rebatida por clique, mira em 360 graus, força pela rodinha e seus limites, lançamento com a força selecionada, atribuição do mouse no modo local, movimento com clique direito e bloqueio durante pausa. A suíte da mecânica anterior também passou novamente.
+```sh
+node --check game.js
+node --test tests/game-rules.test.cjs
+```
+
+Os 10 testes da lógica cobrem alcance de lançamento forte, bots sem avanço entre lançamentos, bloqueio/recuo dos dois lados, coleta após nova rebatida, vitória no ar, exclusão de quiques e lançamentos normais, corrida e pontuação durante telhado, subida/descida, recuperação do bot e vitória aos 100 com X.
+
+Também validado no Chromium: botões de subir/descer, corrida durante telhado, impedimento de lançar do alto, restrição de movimento por teclado, resultado de captura no ar, perspectiva visual e layout móvel. A regressão dos controles de mouse passou com a nova velocidade de lançamento. Ainda falta testar em celular físico.
