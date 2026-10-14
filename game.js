@@ -10,7 +10,7 @@ function fieldingPlayer(){return 3-battingPlayer();}
 function human(player){return player===1||state.mode==='local';}
 function characters(player){return player===battingPlayer()?state.bats:state.fielders;}
 function selected(player){return characters(player)[state.selected[player-1]];}
-function blocked(){return state.paused||ui('rules').open||ui('result').open||['won','crossing'].includes(state.phase);}
+function blocked(){return state.hubHidden||state.paused||ui('rules').open||ui('result').open||['won','crossing'].includes(state.phase);}
 function reset(){if(ui('result').open)ui('result').close();keys.clear();state={mode:ui('mode').value,team:ui('team').value,role:ui('startRole').value,score:0,enemy:0,stats:{hits:0,swaps:0},phase:'ready',paused:false,selected:[0,0],charges:[null,null],target:1,swapped:false,aiTimer:1.5,swing:0,cross:0,broken:-1};placePlayers();say('Movimente-se, escolha sua jogada e proteja as garrafas.');sync();document.querySelector('.game').classList.remove('paused');}
 function placePlayers(){state.bats=bases.map(x=>({x,y,goal:null}));state.fielders=[{x:110,y,goal:null,side:1,throwLimit:110,elevation:0},{x:990,y,goal:null,side:-1,throwLimit:990,elevation:0}];state.ball={x:110,y,z:0,vx:0,vy:0,vz:0,owner:0,kind:'throw',touchedGround:false};state.selected[fieldingPlayer()-1]=0;state.selected[battingPlayer()-1]=1;state.aim={x:910,y};state.expected=[1,0];state.running=false;state.charges=[null,null];}
 function protectedBase(i){return state.bats.some(p=>distance(p,{x:bases[i],y})<34);}
@@ -91,7 +91,7 @@ function ai(dt){
   if(state.enemy>=100)cross(2);
  }
 }
-function update(dt){if(blocked()&&state.phase!=='crossing')return;if(state.paused||ui('rules').open||ui('result').open)return;state.swing=Math.max(0,state.swing-dt);if(state.phase==='crossing'){state.bats.forEach(p=>follow(p,dt));if(state.bats.every(p=>!p.goal))win(battingPlayer()===1);sync();return;}ai(dt);
+function update(dt){if(blocked()&&state.phase!=='crossing')return;if(state.hubHidden||state.paused||ui('rules').open||ui('result').open)return;state.swing=Math.max(0,state.swing-dt);if(state.phase==='crossing'){state.bats.forEach(p=>follow(p,dt));if(state.bats.every(p=>!p.goal))win(battingPlayer()===1);sync();return;}ai(dt);
 for(let player=1;player<=2;player++){if(!human(player))continue;const map=player===1?['a','d','w','s']:['arrowleft','arrowright','arrowup','arrowdown'];const dx=Number(keys.has(map[1]))-Number(keys.has(map[0])),dy=Number(keys.has(map[3]))-Number(keys.has(map[2]));if(dx||dy){const p=selected(player);p.goal=null;p.climbIntent=null;move(p,dx,dy,dt);}if(state.charges[player-1]!==null)state.charges[player-1]=Math.min(1.25,state.charges[player-1]+dt);}
 [...state.bats,...state.fielders].forEach(p=>follow(p,dt));state.fielders.forEach(p=>updateClimb(p,dt));const ball=state.ball;
 if(ball.owner!==null){const p=state.fielders[ball.owner];ball.x=p.x;ball.y=p.y;ball.z=p.elevation||0;}
@@ -185,3 +185,11 @@ canvas.addEventListener('wheel',event=>{
 },{passive:false});canvas.tabIndex=0;
 document.addEventListener('keydown',e=>{if(['SELECT','INPUT'].includes(e.target.tagName)||ui('rules').open||ui('result').open)return;const k=e.key.toLowerCase();if([' ','enter','arrowup','arrowdown','arrowleft','arrowright'].includes(k))e.preventDefault();keys.add(k);if(e.repeat)return;if(k==='p')pause();if(blocked())return;if(k===' ')beginCharge(1);if(k==='q')switchPlayer(1);if(k==='r')run(1);if(k==='x')cross(1);if(k==='c')climb(1);if(state.mode==='local'){if(k==='enter')beginCharge(2);if(k==='/')switchPlayer(2);if(k==='l')run(2);if(k==='k')cross(2);if(k==='m')climb(2);}});
 document.addEventListener('keyup',e=>{const k=e.key.toLowerCase();keys.delete(k);if(k===' ')releaseCharge(1);if(k==='enter'&&state.mode==='local')releaseCharge(2);});window.addEventListener('blur',()=>{keys.clear();state.charges=[null,null];});reset();requestAnimationFrame(frame);
+
+// Only the same-origin hub may suspend/resume this embedded game.
+window.addEventListener('message',event=>{
+ if(event.source!==window.parent||event.origin!==window.location.origin||event.data?.type!=='childhoodHub:visibility')return;
+ state.hubHidden=event.data.active!==true;keys.clear();state.charges=[null,null];
+});
+
+if(window.parent&&window.parent!==window)document.body.classList.add('embedded');

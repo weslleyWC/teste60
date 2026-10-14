@@ -1,4 +1,6 @@
-# Taco de rua
+# Recreio — jogos de infância
+
+Hub de brincadeiras da infância com cards ilustrados, entrada no jogo, tela cheia e retorno à coleção. O Taco de rua é o primeiro jogo disponível; Amarelinha, Bolinha de gude e Queimada são sugestões sinalizadas como “em breve”.
 
 Jogo web de taco com modo solo e disputa entre duas pessoas no mesmo aparelho. Cada pessoa controla uma dupla de dois personagens. Duas garrafas, corridas de 10 pontos e vitória com os tacos em X aos 100 pontos.
 
@@ -10,7 +12,17 @@ Sem dependências ou compilação:
 python3 -m http.server 8000 --bind 0.0.0.0
 ```
 
+A página inicial abre o hub. Clique na capa ou em **Jogar agora** no card do Taco. Use **Tela cheia** para ampliar e **Voltar ao hub** para retornar à coleção. Ao voltar, a partida fica suspensa; abrir o mesmo card retoma o placar e a partida nesta sessão. Recarregar a página inicia outra sessão. Se o navegador não permitir tela cheia, o jogo continua na janela.
+
 Escolha modo, cor da dupla e função inicial; aplique com **Nova partida**.
+
+## Adicionar jogos ao hub
+
+O catálogo fica em `catalog.js`. Cada entrada tem `id` único, `title`, `category`, `description`, `cover`, `icon`, `players` e `available`. Para publicar um jogo jogável, adicione `url` apontando para sua página e marque `available: true`. Coloque a página em `games/<id>/index.html` e a capa em `assets/`. Cards com `available: false` ficam desabilitados.
+
+`index.html`, `hub.js` e `hub.css` cuidam da coleção, navegação e tela cheia. `games/taco/index.html` contém a interface do Taco; `game.js` e `style.css` continuam na raiz para manter seus testes e caminhos estáveis. O acesso direto ao Taco é `games/taco/index.html` e a entrada pelo hub aceita `#jogar/taco`.
+
+Para suspender um novo jogo quando estiver oculto, sua página deve tratar a mensagem `{type: 'childhoodHub:visibility', active: boolean}` enviada pelo hub, validando `event.source === window.parent` e a mesma origem. `active: false` interrompe a simulação e limpa teclas; `active: true` retoma. O Taco já implementa esse ciclo. O hub carrega os jogos apenas quando abertos.
 
 ## Mouse no PC
 
@@ -64,3 +76,5 @@ node --test tests/game-rules.test.cjs
 Os 10 testes da lógica cobrem alcance de lançamento forte, bots sem avanço entre lançamentos, bloqueio/recuo dos dois lados, coleta após nova rebatida, vitória no ar, exclusão de quiques e lançamentos normais, corrida e pontuação durante telhado, subida/descida, recuperação do bot e vitória aos 100 com X.
 
 Também validado no Chromium: botões de subir/descer, corrida durante telhado, impedimento de lançar do alto, restrição de movimento por teclado, resultado de captura no ar, perspectiva visual e layout móvel. A regressão dos controles de mouse passou com a nova velocidade de lançamento. Ainda falta testar em celular físico.
+
+Hub validado no Chromium: cards e capas carregados, jogos futuros desabilitados, abertura pelo card, tela cheia real e saída, volta e retomada com placar preservado/simulação suspensa, histórico do navegador, link direto, layout móvel e mensagem de alternativa quando tela cheia é recusada.

@@ -9,3 +9,6 @@
 .dpad{display:flex;gap:8px;margin-top:14px}.dpad button{min-width:45px;font-size:18px;background:#f8f6ec;touch-action:none;user-select:none}.dpad button:active{background:#d4ddc7}
 
 .mouse-guide{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:18px;padding:14px 16px;border:1px solid #cbd3c2;border-radius:10px;font-size:12px;line-height:1.6}.mouse-guide b{color:var(--orange);margin-right:10px}.mouse-guide label{display:flex;align-items:center;gap:8px}.mouse-guide label[hidden]{display:none}canvas{cursor:crosshair}canvas:focus-visible{outline:3px solid var(--orange);outline-offset:-3px}
+
+/* The hub provides navigation; leave the embedded game focused on its field. */
+.embedded header,.embedded .intro,.embedded footer{display:none}.embedded main{max-width:1500px;padding:18px 24px}.embedded .match-options{margin-top:0}.embedded .game{margin-top:12px}@media(max-width:650px){.embedded main{padding:14px}}
