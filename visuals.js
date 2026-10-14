@@ -62,7 +62,7 @@ window.TacoVisuals = (() => {
     const stride=moving?Math.sin(time*18+index)*4:0,bob=moving?Math.abs(Math.sin(time*18+index))*1.5:Math.sin(time*2+index)*.4;
     if(moving&&Math.floor(time*12)%5===index%5)burst(p.x,p.y,'dust');
     ellipse(c,p.x+9,p.y+3,16,6,'#253a3035');line(c,p.x,p.y,p.x+20,p.y+10,'#31462c20',6);
-    const hitUntil=reactions.get(p)||0,ouch=Math.max(0,hitUntil-time);c.save();c.translate(p.x,p.y-(p.elevation||0)-bob);if(ouch>0)c.rotate(Math.sin(time*32)*.14*ouch/.7);const depthScale=1-(p.elevation||0)/52*.22;c.scale(depthScale,depthScale);
+    const hitUntil=reactions.get(p)||0,ouch=Math.max(0,hitUntil-time);c.save();c.translate(p.x,p.y-(p.elevation||0)-bob);if(ouch>0)c.rotate(Math.sin(time*32)*.14*ouch/.7);const depthScale=1-(p.elevation||0)/52*.22;c.scale(depthScale,depthScale*(p.repairTask?.stage==='lift'?.75:1));
     // Shoes, socks, shorts and shaded shirts give the figures volume.
     line(c,-5,-12,-7+stride,-2,'#bf946d',5);line(c,5,-12,7-stride,-2,'#bf946d',5);
     line(c,-7+stride,-2,-11+stride,0,'#f1e6cc',5);line(c,7-stride,-2,11-stride,0,'#f1e6cc',5);

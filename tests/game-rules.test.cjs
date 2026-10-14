@@ -279,3 +279,41 @@ test('trajectory prediction leaves the live ball and random generator untouched'
  assert.equal(run('JSON.stringify(state.ball)'),run('before'));
  assert.equal(run('calls'),0);
 });
+
+test('a player bump knocks down a bottle without swapping teams or allowing runs',()=>{
+ const run=game();
+ run("state.selected[0]=0;state.running=true;keys.add('a');for(let i=0;i<6;i++)update(.02);keys.clear()");
+ assert.equal(run('state.bottles[0].down'),true);
+ assert.equal(run('state.role'),'bat');
+ assert.equal(run('state.stats.swaps'),0);
+ assert.equal(run('state.running'),false);
+ run('throwBall(2,1)');
+ assert.equal(run('state.ball.owner'),0);
+});
+
+test('only the local fielder restores a knocked bottle and then returns to the previous position',()=>{
+ const run=game();
+ run('knockBottle(0);state.selected[1]=1;restoreBottle(2)');
+ assert.equal(run('Boolean(state.fielders[1].repairTask)'),false);
+ run('state.selected[1]=0;restoreBottle(2);for(let i=0;i<100;i++)update(.02)');
+ assert.equal(run('state.bottles[0].down'),false);
+ assert.equal(run('state.fielders[0].x'),110);
+ assert.equal(run('state.fielders[0].throwLimit'),110);
+ assert.equal(run('state.fielders[0].repairTask'),null);
+});
+
+test('bots restore accidentally knocked bottles and resume play',()=>{
+ const run=game('solo');
+ run('knockBottle(0);knockBottle(1);for(let i=0;i<150;i++)update(.02)');
+ assert.equal(run('state.bottles.every(b=>!b.down)'),true);
+ assert.equal(run('state.fielders.every(p=>!p.repairTask)'),true);
+ assert.equal(run('state.stats.swaps'),0);
+});
+
+test('a bot on the roof descends before restoring its fallen bottle',()=>{
+ const run=game('solo');
+ run('state.fielders[0].x=550;state.fielders[0].y=90;state.fielders[0].elevation=52;state.fielders[0].throwLimit=550;knockBottle(0);for(let i=0;i<550;i++)update(.02)');
+ assert.equal(run('state.bottles[0].down'),false);
+ assert.equal(run('state.fielders[0].elevation'),0);
+ assert.equal(run('Boolean(state.fielders[0].repairTask)'),false);
+});

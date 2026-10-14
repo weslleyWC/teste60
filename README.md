@@ -70,10 +70,10 @@ Execute:
 
 ```sh
 node --check game.js
-node --test tests/game-rules.test.cjs
+node --test tests/*.test.cjs
 ```
 
-Os 26 testes da lógica cobrem alcance de lançamento forte, bots sem avanço entre lançamentos, bloqueio/recuo dos dois lados, coleta após nova rebatida, vitória no ar, exclusão de quiques e lançamentos normais, corrida e pontuação durante telhado, subida/descida, recuperação do bot e vitória aos 100 com X.
+Os 30 testes da lógica cobrem alcance de lançamento forte, bots sem avanço entre lançamentos, bloqueio/recuo dos dois lados, coleta após nova rebatida, vitória no ar, exclusão de quiques e lançamentos normais, corrida e pontuação durante telhado, subida/descida, recuperação do bot e vitória aos 100 com X.
 
 Também validado no Chromium: botões de subir/descer, corrida durante telhado, impedimento de lançar do alto, restrição de movimento por teclado, resultado de captura no ar, perspectiva visual e layout móvel. A regressão dos controles de mouse passou com a nova velocidade de lançamento. Ainda falta testar em celular físico.
 
@@ -106,3 +106,26 @@ Cinco testes novos reproduzem a sequência de telhado e lançamentos sem rebatid
 `audio.js` gera efeitos de estilo arcade pela Web Audio API, sem arquivos externos ou downloads: lançamento, rebatida, quique, passos, bolada, garrafa caindo, coleta, bola escapando, escada, pontos e vitória. O navegador ativa o áudio após a primeira interação no jogo. O botão **Som ligado/desligado** fica no topo; o volume fica em **Configurar**. Essas preferências são salvas localmente e não reiniciam a partida. Ao voltar ao hub, os efeitos são interrompidos.
 
 Verificado no Chromium: ausência de reprodução antes da interação, ativação por clique, sinal de áudio medido, os 11 efeitos, silenciar, volume, persistência das preferências e suspensão/retomada no hub. Os 26 testes das regras continuam passando.
+
+## Bases, esbarrões e controle Xbox
+
+As bases têm círculo e arco interno em giz branco. O arco fica atrás, espelhado entre esquerda e direita, com a garrafa no espaço de trás. Entrar em contato com a garrafa pode derrubá-la por esbarrão sem trocar equipes; a corrida para até a reposição. O lançador do mesmo lado usa **Levantar garrafa** (E no J1, O no J2), caminha até ela, se abaixa e retorna ao ponto anterior. Os bots fazem isso automaticamente, descendo do telhado primeiro se necessário.
+
+O jogador 2 usa setas para movimento, / para trocar personagem, Enter para rebater/carregar e soltar lançamento, L para correr, K para cruzar tacos, M para subir/descer e O para levantar a garrafa.
+
+`gamepad.js` oferece suporte à Gamepad API com mapeamento padrão Xbox. Conecte o USB, aperte um botão no controle e veja o estado em **Configurar**. No modo local, o controle joga como J2 por padrão; há opção de atribuí-lo ao J1. No modo solo controla J1.
+
+| Controle Xbox | Ação |
+| --- | --- |
+| Analógico esquerdo | Mover |
+| Analógico direito | Mirar |
+| A | Rebater; segurar e soltar para lançar |
+| B | Trocar personagem |
+| X | Correr |
+| Y | Levantar garrafa ou subir/descer do telhado |
+| LB / RB | Diminuir / aumentar força |
+| Direcional ↑ | Cruzar tacos aos 100 |
+| Direcional ← | Alternar alvo |
+| Menu | Pausar / continuar |
+
+Clique no jogo uma vez para ativar o som. O navegador precisa reconhecer o controle com mapeamento padrão, em uma página HTTPS ou localhost. Testado com controle simulado no Chromium (movimento, lançamento carregado, seleção, mira, força, pausa e desconexão); ainda falta validar com hardware Xbox físico. A suíte contém 33 testes: 30 de regras e 3 de controle.
