@@ -12,7 +12,7 @@ function characters(player){return player===battingPlayer()?state.bats:state.fie
 function selected(player){return characters(player)[state.selected[player-1]];}
 function blocked(){return state.hubHidden||state.paused||ui('settings').open||ui('rules').open||ui('result').open||['won','crossing'].includes(state.phase);}
 function reset(){window.TacoVisuals?.reset();if(ui('result').open)ui('result').close();keys.clear();state={mode:ui('mode').value,team:ui('team').value,role:ui('startRole').value,score:0,enemy:0,stats:{hits:0,swaps:0,drops:0},phase:'ready',paused:false,selected:[0,0],charges:[null,null],target:1,swapped:false,aiTimer:1.5,swing:0,cross:0,broken:-1};placePlayers();say('Movimente-se, escolha sua jogada e proteja as garrafas.');sync();document.querySelector('.game').classList.remove('paused');}
-function placePlayers(){state.bats=bases.map(x=>({x,y,goal:null}));state.fielders=[{x:110,y,goal:null,side:1,throwLimit:110,elevation:0},{x:990,y,goal:null,side:-1,throwLimit:990,elevation:0}];state.ball={x:110,y,z:0,vx:0,vy:0,vz:0,owner:0,kind:'throw',touchedGround:false};state.selected[fieldingPlayer()-1]=0;state.selected[battingPlayer()-1]=1;state.aim={x:910,y};state.expected=[1,0];state.running=false;state.charges=[null,null];}
+function placePlayers(){state.bats=bases.map(x=>({x,y,goal:null}));state.fielders=[{x:110,y,goal:null,side:1,throwLimit:110,elevation:0},{x:990,y,goal:null,side:-1,throwLimit:990,elevation:0}];state.ball={x:110,y,z:0,vx:0,vy:0,vz:0,owner:0,kind:'throw',touchedGround:false};state.selected[fieldingPlayer()-1]=0;state.selected[battingPlayer()-1]=1;state.aim={x:910,y};state.expected=[1,0];state.running=false;state.aiRunCommitted=false;state.aiRetreat=false;state.charges=[null,null];}
 function canCollect(i){if(state.ball.accidental)return i===state.ball.thrower;return state.ball.kind!=='batted'||state.ball.collector===undefined||state.ball.collector===i;}
 function protectedBase(i){return state.bats.some(p=>distance(p,{x:bases[i],y})<34);}
 function sync(){const local=state.mode==='local',bp=battingPlayer();ui('localControls').hidden=!local;ui('mousePlayerLabel').hidden=!local;ui('skill2').hidden=!local;ui('teamLabel').textContent=local?'JOGADOR 1':'SUA DUPLA';ui('enemyLabel').textContent=local?'JOGADOR 2':'DUPLA DA RUA';ui('score').textContent=state.score;ui('enemyScore').textContent=state.enemy;ui('progress').style.width=state.score+'%';ui('phase').textContent=state.phase==='won'?'Fim de partida':local?`J${bp}: tacos · J${3-bp}: bola`:bp===1?'Sua dupla está com os tacos':'Sua dupla está com a bola';for(const [player,prefix]of [[1,''],[2,'p2']]){const bat=player===bp;ui(prefix?prefix+'hit':'hit').textContent=(prefix?'J2 · ':'')+(bat?'Rebater':'Lançar');ui(prefix?prefix+'run':'run').disabled=!bat||!state.running;ui(prefix?prefix+'cross':'cross').disabled=!bat||(player===1?state.score:state.enemy)<100||state.phase==='won';ui(prefix?prefix+'aim':'aim').hidden=false;ui(prefix?prefix+'aim':'aim').disabled=bat;}
@@ -99,29 +99,120 @@ function collectBall(i){
  ball.owner=i;ball.onRoof=false;ball.vx=ball.vy=ball.vz=0;state.phase='ready';state.aiTimer=.35;
  say(p.elevation>0?'Bola recuperada no telhado! Desça para lançar.':'Bola na mão! Pode recuar, mas não ultrapasse a linha da coleta.');
 }
+// Predict the public ball trajectory using the same bounce/drag rules as the game.
+// This does not consume randomness or change the live ball.
+function predictedPath(ball,horizon=5){
+ const p={...ball},points=[{...p,t:0}],dt=.025;
+ if(p.onRoof||p.owner!==null)return points;
+ for(let t=dt;t<=horizon;t+=dt){
+  p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;p.vz-=420*dt;
+  if(p.z<=0){p.z=0;p.touchedGround=true;p.vz=Math.abs(p.vz)>65?-p.vz*.28:0;const drag=Math.exp(-(p.kind==='throw'&&!p.slipped?.16:2.3)*dt);p.vx*=drag;p.vy*=drag;}
+  if(p.x<35||p.x>1065){p.x=clamp(p.x,35,1065);p.vx*=-.65;}
+  if(p.y<105){
+   if(p.kind==='batted'&&p.z>52){const house=Math.floor((p.x+15)/157)*157-15;p.x=clamp(p.x,house+10,house+125);p.y=90;p.z=52;p.onRoof=true;points.push({...p,t});break;}
+   p.y=105;p.vy*=-.6;
+  }
+  if(p.y>325){p.y=325;p.vy*=-.6;}
+  points.push({...p,t});
+ }
+ return points;
+}
+function reachableCatch(p,point){
+ const legal=point.kind==='batted'||point.accidental&&point.thrower===state.fielders.indexOf(p)||(point.x-p.throwLimit)*p.side<=.1;
+ const height=point.touchedGround||point.kind!=='batted'?point.z<18:point.vz<0&&point.z<=34;
+ return !point.onRoof&&legal&&height&&point.y>=105&&point.y<=325&&distance(p,point)<=205*point.t+15;
+}
+function interceptFor(p,path){
+ const early=path.find(point=>point.t>=Math.max(.08,path[0].pickupDelay||0)&&reachableCatch(p,point))||null;
+ // Prefer a crossing of the fielder's current line: lateral cover instead of creeping forward.
+ for(let i=1;i<path.length;i++){
+  const a=path[i-1],b=path[i];if((a.x-p.x)*(b.x-p.x)>0||Math.abs(b.x-a.x)<.01)continue;
+  const ratio=(p.x-a.x)/(b.x-a.x);if(ratio<0||ratio>1)continue;
+  const point={...b,x:p.x,y:a.y+(b.y-a.y)*ratio,z:a.z+(b.z-a.z)*ratio,t:a.t+(b.t-a.t)*ratio};
+  if(point.t>=Math.max(.08,path[0].pickupDelay||0)&&reachableCatch(p,point))return early&&early.t+.1<point.t?early:point;
+ }
+ return early;
+}
+function homeFielder(p){
+ if(p.climbing||p.climbIntent)return;
+ if(p.elevation>0){p.climbIntent='down';p.goal={x:p.x,y:100};return;}
+ const home={x:p.side===1?Math.min(110,p.throwLimit):Math.max(990,p.throwLimit),y};p.goal=distance(p,home)<3?null:home;
+}
+function defenseTime(ball=state.ball,path=predictedPath(ball)){
+ if(ball.owner!==null){const p=state.fielders[ball.owner];return (p.elevation>0?1.3:0)+.25+Math.min(...bases.map(x=>distance(p,{x,y})))/1140;}
+ const eligible=state.fielders.filter((_,i)=>ball.collector===undefined||ball.kind!=='batted'||ball.collector===i);
+ const roof=path.find(point=>point.onRoof);
+ if(roof)return Math.min(...eligible.map(p=>distance(p,{x:roof.x,y:110})/205))+2.6+.25;
+ const catches=eligible.map(p=>interceptFor(p,path)).filter(Boolean);
+ if(catches.length)return Math.min(...catches.map(point=>point.t+.25+Math.min(...bases.map(x=>distance(point,{x,y})))/1140));
+ const landing=path.find(point=>point.touchedGround&&Math.hypot(point.vx,point.vy)<60)||path[path.length-1];
+ return Math.max(landing.t,Math.min(...eligible.map(p=>distance(p,landing)/205)))+.45;
+}
+function safeBotRun(){
+ if(!state.running||state.ball.owner!==null||state.enemy>=100)return false;
+ const needed=Math.max(...state.bats.map((p,i)=>distance(p,{x:bases[state.expected[i]],y})))/205;
+ return defenseTime()>needed+.6;
+}
+function retreatBotBats(){
+ const arrangements=[[0,1],[1,0]];
+ arrangements.sort((a,b)=>Math.max(...state.bats.map((p,i)=>distance(p,{x:bases[a[i]],y})))-Math.max(...state.bats.map((p,i)=>distance(p,{x:bases[b[i]],y}))));
+ state.bats.forEach((p,i)=>p.goal={x:bases[arrangements[0][i]],y});state.aiRetreat=true;
+}
+function chooseBotBat(p){
+ const ball=state.ball,timing=1-distance(ball,p)/100,side=p.x>550?-1:1,collector=p.x>550?0:1;
+ let best=null;
+ for(const degrees of [-65,-35,0,35,65]){
+  const angle=degrees*Math.PI/180,power=.9;
+  const candidate={...ball,owner:null,kind:'batted',collector,touchedGround:false,onRoof:false,z:8,vx:side*Math.cos(angle)*696*timing,vy:Math.sin(angle)*696*timing,vz:244};
+  const score=defenseTime(candidate);
+  if(!best||score>best.score)best={degrees,power,score};
+ }
+ ui('angle2').value=String(best.degrees);ui('power2').value=String(best.power*100);bat(2);
+}
 function ai(dt){
  if(state.mode==='local')return;state.aiTimer-=dt;
+ const ball=state.ball;
  if(fieldingPlayer()===2){
-  const ball=state.ball;
   if(ball.owner!==null){
-   const p=state.fielders[ball.owner];state.selected[1]=ball.owner;p.goal=null;
-   if((p.x-p.throwLimit)*p.side>.1){p.goal={x:p.throwLimit,y:p.y};}
-   else if(p.elevation>0){if(!p.climbing&&!p.climbIntent)climb(2);}
-   else if(!p.climbing&&state.aiTimer<=0){const open=bases.findIndex((_,i)=>!protectedBase(i));state.aim={x:bases[open<0?(p.side===1?1:0):open],y};throwBall(2,.9+Math.random()*.1);state.aiTimer=.9;}
+   const i=ball.owner,p=state.fielders[i];state.selected[1]=i;homeFielder(state.fielders[1-i]);
+   if(p.climbing)return;
+   if(p.elevation>0){if(!p.climbIntent)climb(2);return;}
+   if((p.x-p.throwLimit)*p.side>.1){p.goal={x:p.throwLimit,y:p.y};return;}
+   p.goal=null;
+   if(state.aiTimer<=0){
+    const open=bases.map((x,i)=>({x,i,d:distance(p,{x,y})})).filter(base=>!protectedBase(base.i)).sort((a,b)=>a.d-b.d);
+    state.aim={x:open.length?open[0].x:bases[p.side===1?1:0],y};throwBall(2,.9+Math.random()*.1);state.aiTimer=.9;
+    // Return after release, while the partner covers the actual incoming trajectory.
+    homeFielder(p);
+   }
   }else if(ball.onRoof){
-   const i=ball.collector===undefined?(distance(state.fielders[0],ball)<distance(state.fielders[1],ball)?0:1):ball.collector;state.selected[1]=i;
-   const p=state.fielders[i];if(!p.elevation&&!p.climbing&&!p.climbIntent)climb(2);
-  }else if(ball.kind==='batted'||Math.hypot(ball.vx,ball.vy)<90){
-   // Predict where a descending ball will be within reach of the hands.
-   const disc=ball.vz*ball.vz+840*(ball.z-28);
-   const t=!ball.touchedGround&&disc>=0?Math.max(0,(ball.vz+Math.sqrt(disc))/420):0;
-   const target={x:clamp(ball.x+ball.vx*t,40,1060),y:clamp(ball.y+ball.vy*t,105,325)};
-   const candidates=state.fielders.map((p,i)=>({p,i,d:distance(p,target)})).filter(({p,i})=>canCollect(i)&&(canAdvance(p)||(target.x-p.throwLimit)*p.side<=0));
-   candidates.sort((a,b)=>a.d-b.d);if(candidates.length)candidates[0].p.goal=target;
+   const i=ball.collector===undefined?(distance(state.fielders[0],ball)<distance(state.fielders[1],ball)?0:1):ball.collector;
+   state.selected[1]=i;homeFielder(state.fielders[1-i]);const p=state.fielders[i];
+   if(!p.elevation&&!p.climbing&&!p.climbIntent)climb(2);
+  }else{
+   const path=predictedPath(ball),preferred=ball.kind==='batted'?ball.collector:ball.accidental?ball.thrower:ball.thrower===undefined?null:1-ball.thrower;
+   const plans=state.fielders.map((p,i)=>({p,i,point:canCollect(i)&&!p.elevation&&!p.climbing?interceptFor(p,path):null})).filter(plan=>plan.point);
+   plans.sort((a,b)=>(a.i===preferred?0:1)-(b.i===preferred?0:1)||a.point.t-b.point.t);
+   const chosen=plans[0];
+   state.fielders.forEach((p,i)=>{if(chosen&&i===chosen.i){p.goal={x:chosen.point.x,y:chosen.point.y};state.selected[1]=i;}else homeFielder(p);});
+   if(!chosen&&(ball.kind==='batted'||ball.accidental||Math.hypot(ball.vx,ball.vy)<90)){
+    const target=path[path.length-1];
+    const choices=state.fielders.map((p,i)=>({p,i,d:distance(p,target)})).filter(({p,i})=>canCollect(i)&&!p.elevation&&!p.climbing&&(canAdvance(p)||(target.x-p.throwLimit)*p.side<=.1)).sort((a,b)=>a.d-b.d);
+    if(choices.length){choices[0].p.goal={x:target.x,y:clamp(target.y,105,325)};state.selected[1]=choices[0].i;}
+   }
   }
  }else{
-  if(state.phase==='shot'){const i=distance(state.bats[0],state.ball)<distance(state.bats[1],state.ball)?0:1;state.selected[1]=i;if(distance(state.bats[i],state.ball)<48){ui('angle2').value=String(Math.round(Math.random()*130-65));ui('power2').value=String(45+Math.round(Math.random()*50));bat(2);}}
-  if(state.running&&state.enemy<100&&state.aiTimer<=0&&state.ball.owner===null){run(2);state.aiTimer=.6;}
+  if(state.phase==='shot'){
+   const legal=state.bats.map((p,i)=>({p,i,d:distance(p,ball)})).filter(({p})=>ball.throwSide===undefined||(p.x>550?1:0)!==ball.throwSide).sort((a,b)=>a.d-b.d);
+   if(legal.length&&legal[0].d<48&&ball.z<=32){state.selected[1]=legal[0].i;chooseBotBat(legal[0].p);}
+  }
+  const underway=state.bats.some(p=>p.goal&&distance(p,p.goal)>5);
+  if(state.aiRunCommitted&&underway&&!state.aiRetreat){
+   const remaining=Math.max(...state.bats.map(p=>p.goal?distance(p,p.goal):0))/205;
+   if(defenseTime()<remaining+.25)retreatBotBats();
+  }
+  if(!underway){state.aiRunCommitted=false;state.aiRetreat=false;}
+  if(!underway&&state.aiTimer<=0&&safeBotRun()){run(2);state.aiRunCommitted=true;state.aiTimer=.4;}
   if(state.enemy>=100)cross(2);
  }
 }

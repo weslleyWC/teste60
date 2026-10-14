@@ -73,7 +73,7 @@ node --check game.js
 node --test tests/game-rules.test.cjs
 ```
 
-Os 21 testes da lógica cobrem alcance de lançamento forte, bots sem avanço entre lançamentos, bloqueio/recuo dos dois lados, coleta após nova rebatida, vitória no ar, exclusão de quiques e lançamentos normais, corrida e pontuação durante telhado, subida/descida, recuperação do bot e vitória aos 100 com X.
+Os 26 testes da lógica cobrem alcance de lançamento forte, bots sem avanço entre lançamentos, bloqueio/recuo dos dois lados, coleta após nova rebatida, vitória no ar, exclusão de quiques e lançamentos normais, corrida e pontuação durante telhado, subida/descida, recuperação do bot e vitória aos 100 com X.
 
 Também validado no Chromium: botões de subir/descer, corrida durante telhado, impedimento de lançar do alto, restrição de movimento por teclado, resultado de captura no ar, perspectiva visual e layout móvel. A regressão dos controles de mouse passou com a nova velocidade de lançamento. Ainda falta testar em celular físico.
 
@@ -92,3 +92,11 @@ Uma rebatida da direita só pode ser recolhida pelo lançador da esquerda; uma r
 Os efeitos usam ruído próprio, separado da aleatoriedade de pegadas e bots. Validado no Chromium em resolução 2×: rebatida/corrida, subida e recuperação no telhado, layout móvel, ausência de erros JavaScript e preservação da aleatoriedade da lógica. Os 17 testes das regras continuam passando.
 
 Boladas no jogador ou taco do mesmo lado do lançador são contatos acidentais, não rebatidas: não liberam corrida nem pontos. O jogador reage com um pequeno balanço, efeito de impacto e “AI!”. O lançador original pode buscar essa bola, mas precisa respeitar sua linha anterior para lançar novamente. A colisão usa o trajeto percorrido no quadro, e um lançamento reto normal continua passando pelo batedor próximo. Quatro novos testes verificam esses casos; a animação e a colisão também foram exercitadas no Chromium.
+
+## Decisões dos bots
+
+A defesa prevê a trajetória com os mesmos quiques, altura e atrito usados pela física. O parceiro cobre o ponto de recepção de lançamentos diagonais, enquanto quem lançou recua para cobrir seu lado. A recuperação no telhado inclui subida, coleta, descida e retorno à cobertura. Todos continuam respeitando o lado permitido de coleta e a linha de lançamento.
+
+Com os tacos, os bots escolhem a direção da rebatida considerando a posição da defesa. Antes de correr, comparam o tempo estimado de recuperação/lançamento com o tempo necessário para trocar os círculos, incluindo uma margem de segurança. Rebatidas fracas perto da defesa não geram uma corrida automática. Se a defesa recupera a bola mais cedo, a dupla procura os círculos para se proteger.
+
+Cinco testes novos reproduzem a sequência de telhado e lançamentos sem rebatida, recepção diagonal, proteção após rebatida fraca, corrida segura com retorno ao abrigo e isolamento da previsão em relação à bola real/aleatoriedade. Também validado no Chromium com 24 segundos de simulação após telhado, reposicionamento, decisões de corrida e renderização.

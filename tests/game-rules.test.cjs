@@ -238,3 +238,44 @@ test('the thrower can retrieve an accidental deflection but must retreat to the 
  run('move(state.fielders[0],-1,0,.4);throwBall(2,1)');
  assert.equal(run('state.ball.owner'),null);
 });
+
+test('after a roof recovery bots return to coverage and continue exchanging missed shots without getting stuck',()=>{
+ const run=game('solo');
+ run("state.phase='roof';state.running=true;state.ball={x:550,y:90,z:52,vx:0,vy:0,vz:0,owner:null,kind:'batted',collector:0,onRoof:true};globalThis.shots=0;globalThis.lastOwner=null;for(let i=0;i<1000;i++){update(.02);if(lastOwner!==null&&state.ball.owner===null)shots++;lastOwner=state.ball.owner;}");
+ assert.ok(run('shots')>=6);
+ assert.ok(run('state.fielders[0].x')<180);
+ assert.ok(Math.abs(run('state.fielders[0].y')-226)<10);
+ assert.equal(run('state.fielders.every(p=>!p.elevation&&!p.climbing)'),true);
+});
+
+test('the partner intercepts an angled roof-return throw instead of waiting on a missed line',()=>{
+ const run=game('solo');
+ run("state.fielders[0].x=550;state.fielders[0].y=110;state.fielders[0].throwLimit=550;state.ball.owner=0;state.aiTimer=0;globalThis.caught=false;for(let i=0;i<70;i++){update(.02);if(state.ball.owner===1)caught=true;}");
+ assert.equal(run('caught'),true);
+});
+
+test('batting bots protect the circles after a weak nearby rebat',()=>{
+ const run=game('solo','ball');
+ run("state.running=true;state.phase='loose';state.aiTimer=0;state.ball={x:940,y:226,z:0,vx:10,vy:0,vz:0,owner:null,kind:'batted',collector:1,touchedGround:true};ai(.02)");
+ assert.equal(run('safeBotRun()'),false);
+ assert.equal(run('state.bats.every(p=>!p.goal)'),true);
+ assert.equal(run('state.enemy'),0);
+});
+
+test('batting bots run on a distant roof rebat and retreat if defense recovers sooner than expected',()=>{
+ const run=game('solo','ball');
+ run("state.running=true;state.phase='roof';state.aiTimer=0;state.ball={x:990,y:90,z:52,vx:0,vy:0,vz:0,owner:null,kind:'batted',collector:0,onRoof:true};ai(.02)");
+ assert.equal(run('state.aiRunCommitted'),true);
+ assert.equal(run('state.bats.every(p=>p.goal)'),true);
+ run("state.bats[0].x=230;state.bats[1].x=870;state.ball.owner=0;state.ball.onRoof=false;state.phase='ready';ai(.02)");
+ assert.equal(run('state.aiRetreat'),true);
+ assert.equal(run('state.bats[0].goal.x'),190);
+ assert.equal(run('state.bats[1].goal.x'),910);
+});
+
+test('trajectory prediction leaves the live ball and random generator untouched',()=>{
+ const run=game();
+ run("globalThis.calls=0;Math.random=()=>{calls++;return .5;};throwBall(2,.8);globalThis.before=JSON.stringify(state.ball);predictedPath(state.ball)");
+ assert.equal(run('JSON.stringify(state.ball)'),run('before'));
+ assert.equal(run('calls'),0);
+});
