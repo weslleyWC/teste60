@@ -73,7 +73,7 @@ node --check game.js
 node --test tests/game-rules.test.cjs
 ```
 
-Os 17 testes da lógica cobrem alcance de lançamento forte, bots sem avanço entre lançamentos, bloqueio/recuo dos dois lados, coleta após nova rebatida, vitória no ar, exclusão de quiques e lançamentos normais, corrida e pontuação durante telhado, subida/descida, recuperação do bot e vitória aos 100 com X.
+Os 21 testes da lógica cobrem alcance de lançamento forte, bots sem avanço entre lançamentos, bloqueio/recuo dos dois lados, coleta após nova rebatida, vitória no ar, exclusão de quiques e lançamentos normais, corrida e pontuação durante telhado, subida/descida, recuperação do bot e vitória aos 100 com X.
 
 Também validado no Chromium: botões de subir/descer, corrida durante telhado, impedimento de lançar do alto, restrição de movimento por teclado, resultado de captura no ar, perspectiva visual e layout móvel. A regressão dos controles de mouse passou com a nova velocidade de lançamento. Ainda falta testar em celular físico.
 
@@ -90,3 +90,5 @@ Uma rebatida da direita só pode ser recolhida pelo lançador da esquerda; uma r
 `visuals.js` desenha o cenário e os personagens em Canvas: telhados com textura, janelas e jardins, asfalto, luz de fim de tarde, sombras, garrafas com volume, uniformes numerados e animação de passos. A bola tem sombreamento e rastro; rebatidas e corridas geram partículas. O cenário é pré-renderizado e os efeitos têm um limite de partículas. A resolução do Canvas acompanha a tela até 2×, mantendo as coordenadas dos controles.
 
 Os efeitos usam ruído próprio, separado da aleatoriedade de pegadas e bots. Validado no Chromium em resolução 2×: rebatida/corrida, subida e recuperação no telhado, layout móvel, ausência de erros JavaScript e preservação da aleatoriedade da lógica. Os 17 testes das regras continuam passando.
+
+Boladas no jogador ou taco do mesmo lado do lançador são contatos acidentais, não rebatidas: não liberam corrida nem pontos. O jogador reage com um pequeno balanço, efeito de impacto e “AI!”. O lançador original pode buscar essa bola, mas precisa respeitar sua linha anterior para lançar novamente. A colisão usa o trajeto percorrido no quadro, e um lançamento reto normal continua passando pelo batedor próximo. Quatro novos testes verificam esses casos; a animação e a colisão também foram exercitadas no Chromium.

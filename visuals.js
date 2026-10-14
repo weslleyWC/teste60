@@ -2,7 +2,7 @@
 // Visual effects have their own deterministic noise; they never consume gameplay randomness.
 window.TacoVisuals = (() => {
   const W=1100,H=420;let scenery=null,time=0,particles=[],trail=[],lastBall=null,serial=0;
-  const positions=new WeakMap();
+  const positions=new WeakMap();let reactions=new WeakMap();
   const noise=n=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
   function ellipse(c,x,y,rx,ry,color){c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();}
   function line(c,x,y,a,b,color,width=1){c.strokeStyle=color;c.lineWidth=width;c.lineCap='round';c.beginPath();c.moveTo(x,y);c.lineTo(a,b);c.stroke();}
@@ -62,7 +62,7 @@ window.TacoVisuals = (() => {
     const stride=moving?Math.sin(time*18+index)*4:0,bob=moving?Math.abs(Math.sin(time*18+index))*1.5:Math.sin(time*2+index)*.4;
     if(moving&&Math.floor(time*12)%5===index%5)burst(p.x,p.y,'dust');
     ellipse(c,p.x+9,p.y+3,16,6,'#253a3035');line(c,p.x,p.y,p.x+20,p.y+10,'#31462c20',6);
-    c.save();c.translate(p.x,p.y-(p.elevation||0)-bob);const depthScale=1-(p.elevation||0)/52*.22;c.scale(depthScale,depthScale);
+    const hitUntil=reactions.get(p)||0,ouch=Math.max(0,hitUntil-time);c.save();c.translate(p.x,p.y-(p.elevation||0)-bob);if(ouch>0)c.rotate(Math.sin(time*32)*.14*ouch/.7);const depthScale=1-(p.elevation||0)/52*.22;c.scale(depthScale,depthScale);
     // Shoes, socks, shorts and shaded shirts give the figures volume.
     line(c,-5,-12,-7+stride,-2,'#bf946d',5);line(c,5,-12,7-stride,-2,'#bf946d',5);
     line(c,-7+stride,-2,-11+stride,0,'#f1e6cc',5);line(c,7-stride,-2,11-stride,0,'#f1e6cc',5);
@@ -76,7 +76,7 @@ window.TacoVisuals = (() => {
       line(c,side*17,-19,side*(hit?43:39),hit?-37:0,'#77532f',7);line(c,side*17,-20,side*(hit?43:39),hit?-38:-1,'#cca371',4);line(c,side*17,-20,side*23,-16,'#eee0bc',2);
       if(hit){c.strokeStyle='#fff0bb99';c.lineWidth=2;c.beginPath();c.arc(side*15,-20,32,side>0?-1.1:2.1,side>0?.5:3.7);c.stroke();}
     }else{ellipse(c,18,-19-stride,4,4,'#c59b6a');}
-    c.restore();
+    c.restore();if(ouch>0){c.fillStyle='#fff4cc';c.font='bold 11px Arial';c.textAlign='center';c.fillText('AI!',p.x+21,p.y-55);}
   }
   function bottle(c,x,y){
     ellipse(c,x+7,y+8,12,4,'#334c3530');
@@ -92,6 +92,7 @@ window.TacoVisuals = (() => {
     c.strokeStyle='#b7966f';c.lineWidth=.7;c.beginPath();c.arc(ball.x-2,screenY,4,-1.2,1.2);c.stroke();
   }
   function effects(c){for(const p of particles){c.globalAlpha=Math.max(0,p.life/p.max);if(p.type==='hit')line(c,p.x,p.y-p.z,p.x-p.vx*.03,p.y-p.z-p.vy*.03,'#ffedb0',2);else ellipse(c,p.x,p.y-p.z,p.type==='win'?3:2,p.type==='win'?2:1.2,p.type==='win'?'#e6b85e':'#e1cc9a');}c.globalAlpha=1;}
-  function reset(){particles=[];trail=[];lastBall=null;}
-  return {background,person,bottle,ball,effects,tick,burst,reset};
+  function ouch(p){reactions.set(p,time+.7);burst(p.x,p.y-20,'hit');}
+  function reset(){reactions=new WeakMap();particles=[];trail=[];lastBall=null;}
+  return {background,person,bottle,ball,effects,tick,burst,ouch,reset};
 })();
