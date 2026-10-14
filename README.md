@@ -100,3 +100,9 @@ A defesa prevê a trajetória com os mesmos quiques, altura e atrito usados pela
 Com os tacos, os bots escolhem a direção da rebatida considerando a posição da defesa. Antes de correr, comparam o tempo estimado de recuperação/lançamento com o tempo necessário para trocar os círculos, incluindo uma margem de segurança. Rebatidas fracas perto da defesa não geram uma corrida automática. Se a defesa recupera a bola mais cedo, a dupla procura os círculos para se proteger.
 
 Cinco testes novos reproduzem a sequência de telhado e lançamentos sem rebatida, recepção diagonal, proteção após rebatida fraca, corrida segura com retorno ao abrigo e isolamento da previsão em relação à bola real/aleatoriedade. Também validado no Chromium com 24 segundos de simulação após telhado, reposicionamento, decisões de corrida e renderização.
+
+## Sons
+
+`audio.js` gera efeitos de estilo arcade pela Web Audio API, sem arquivos externos ou downloads: lançamento, rebatida, quique, passos, bolada, garrafa caindo, coleta, bola escapando, escada, pontos e vitória. O navegador ativa o áudio após a primeira interação no jogo. O botão **Som ligado/desligado** fica no topo; o volume fica em **Configurar**. Essas preferências são salvas localmente e não reiniciam a partida. Ao voltar ao hub, os efeitos são interrompidos.
+
+Verificado no Chromium: ausência de reprodução antes da interação, ativação por clique, sinal de áudio medido, os 11 efeitos, silenciar, volume, persistência das preferências e suspensão/retomada no hub. Os 26 testes das regras continuam passando.

@@ -30,14 +30,14 @@ function throwBall(player,power){
  const aim=state.aim,dx=aim.x-p.x,dy=aim.y-p.y,d=Math.hypot(dx,dy);if(d<1)return;
  p.goal=null;p.climbIntent=null;
  const speed=420+clamp(power,0,1)*800;
- state.ball={x:p.x,y:p.y,z:4,vx:dx/d*speed,vy:dy/d*speed,vz:0,owner:null,pickupDelay:.12,kind:'throw',throwSide:p.side===1?0:1,thrower:state.selected[player-1],touchedGround:false};state.phase='shot';say('Lançamento! Direção e força estão nas suas mãos.');
+ state.ball={x:p.x,y:p.y,z:4,vx:dx/d*speed,vy:dy/d*speed,vz:0,owner:null,pickupDelay:.12,kind:'throw',throwSide:p.side===1?0:1,thrower:state.selected[player-1],touchedGround:false};state.phase='shot';window.TacoAudio?.play('throw');say('Lançamento! Direção e força estão nas suas mãos.');
 }
-function bat(player){const ball=state.ball,p=selected(player);state.swing=.25;if(ball.throwSide!==undefined&&(p.x>550?1:0)===ball.throwSide){say('Esse é o batedor do mesmo lado: bolada não vale rebatida.');return;}if(state.phase!=='shot'||ball.z>32||distance(ball,p)>62){say('Aproxime o taco da bola e acerte o tempo da rebatida.');return;}const power=Number(ui('power'+player).value)/100,angle=Number(ui('angle'+player).value)*Math.PI/180,side=p.x>550?-1:1;const timing=1-distance(ball,p)/100;ball.vx=side*Math.cos(angle)*(210+power*540)*timing;ball.vy=Math.sin(angle)*(210+power*540)*timing;ball.vz=110+power*150;ball.z=8;ball.owner=null;ball.kind='batted';ball.collector=p.x>550?0:1;state.fielders.forEach(f=>f.goal=null);ball.touchedGround=false;ball.airCatchEligible=true;ball.onRoof=false;ball.pickupDelay=.12;state.phase='loose';state.stats.hits++;window.TacoVisuals?.burst(p.x,p.y,'hit');state.running=true;say('Rebatida! Só o lançador da '+(ball.collector===0?'esquerda':'direita')+' pode buscar. Corra!');}
+function bat(player){const ball=state.ball,p=selected(player);state.swing=.25;if(ball.throwSide!==undefined&&(p.x>550?1:0)===ball.throwSide){say('Esse é o batedor do mesmo lado: bolada não vale rebatida.');return;}if(state.phase!=='shot'||ball.z>32||distance(ball,p)>62){say('Aproxime o taco da bola e acerte o tempo da rebatida.');return;}const power=Number(ui('power'+player).value)/100,angle=Number(ui('angle'+player).value)*Math.PI/180,side=p.x>550?-1:1;const timing=1-distance(ball,p)/100;ball.vx=side*Math.cos(angle)*(210+power*540)*timing;ball.vy=Math.sin(angle)*(210+power*540)*timing;ball.vz=110+power*150;ball.z=8;ball.owner=null;ball.kind='batted';ball.collector=p.x>550?0:1;state.fielders.forEach(f=>f.goal=null);ball.touchedGround=false;ball.airCatchEligible=true;ball.onRoof=false;ball.pickupDelay=.12;state.phase='loose';state.stats.hits++;window.TacoAudio?.play('bat');window.TacoVisuals?.burst(p.x,p.y,'hit');state.running=true;say('Rebatida! Só o lançador da '+(ball.collector===0?'esquerda':'direita')+' pode buscar. Corra!');}
 function segmentDistance(point,a,b){const dx=b.x-a.x,dy=b.y-a.y,t=clamp(((point.x-a.x)*dx+(point.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);return Math.hypot(point.x-a.x-t*dx,point.y-a.y-t*dy);}
 function accidentalHit(p,ball){
  ball.accidental=true;ball.vx*=-.12;ball.vy*=.12;ball.vz=35;ball.z=Math.max(3,ball.z);ball.slipped=true;ball.kind='throw';ball.airCatchEligible=false;ball.collector=undefined;ball.pickupDelay=.18;
  state.phase='loose';state.running=false;state.bats.forEach(b=>b.goal=null);
- window.TacoVisuals?.ouch(p);say('Opa, bolada! Não foi rebatida: sem corrida. Busque a bola e lance de novo.');
+ window.TacoAudio?.play('ouch');window.TacoVisuals?.ouch(p);say('Opa, bolada! Não foi rebatida: sem corrida. Busque a bola e lance de novo.');
 }
 function sameSideCollision(old,ball){
  if(ball.kind!=='throw'||ball.throwSide===undefined||state.phase!=='shot')return false;
@@ -53,8 +53,8 @@ function sameSideCollision(old,ball){
 }
 function run(player){if(blocked()||player!==battingPlayer()||!state.running)return;state.bats.forEach((p,i)=>p.goal={x:bases[state.expected[i]],y});state.running=true;say('Dupla correndo! Você pode mudar o caminho com o movimento livre.');}
 function cross(player){if(blocked()||player!==battingPlayer()||(player===1?state.score:state.enemy)<100)return;state.phase='crossing';state.cross=0;state.bats.forEach((p,i)=>p.goal={x:530+i*40,y});say('Indo ao meio cruzar os tacos!');}
-function swap(i){window.TacoVisuals?.burst(bases[i],y,'hit');state.stats.swaps++;state.role=state.role==='bat'?'ball':'bat';state.phase='ready';state.broken=-1;state.aiTimer=1.5;placePlayers();say('Garrafa derrubada! Troca de função; os pontos continuam.');sync();}
-function win(player,reason='100 pontos e tacos cruzados'){window.TacoVisuals?.burst(550,226,'win');state.winReason=reason;state.winner=player;state.phase='won';say((player?'Sua dupla venceu! ':'A outra dupla venceu! ')+reason);ui('resultTitle').textContent=state.mode==='local'?'Jogador '+(player?'1':'2')+' venceu!':player?'Sua dupla venceu!':'A dupla da rua venceu!';ui('resultScore').textContent=`Placar: ${state.score} × ${state.enemy}`;ui('resultStats').textContent=`${reason} · ${state.stats.hits} rebatidas · ${state.stats.swaps} trocas de função`;ui('result').showModal();sync();}
+function swap(i){window.TacoAudio?.play('bottle');window.TacoVisuals?.burst(bases[i],y,'hit');state.stats.swaps++;state.role=state.role==='bat'?'ball':'bat';state.phase='ready';state.broken=-1;state.aiTimer=1.5;placePlayers();say('Garrafa derrubada! Troca de função; os pontos continuam.');sync();}
+function win(player,reason='100 pontos e tacos cruzados'){window.TacoAudio?.play('win');window.TacoVisuals?.burst(550,226,'win');state.winReason=reason;state.winner=player;state.phase='won';say((player?'Sua dupla venceu! ':'A outra dupla venceu! ')+reason);ui('resultTitle').textContent=state.mode==='local'?'Jogador '+(player?'1':'2')+' venceu!':player?'Sua dupla venceu!':'A dupla da rua venceu!';ui('resultScore').textContent=`Placar: ${state.score} × ${state.enemy}`;ui('resultStats').textContent=`${reason} · ${state.stats.hits} rebatidas · ${state.stats.swaps} trocas de função`;ui('result').showModal();sync();}
 function pause(){if(state.phase==='won')return;state.paused=!state.paused;keys.clear();state.charges=[null,null];document.querySelector('.game').classList.toggle('paused',state.paused);sync();}
 function canAdvance(p){return !state.fielders.includes(p)||state.ball.owner===null&&(state.ball.kind==='batted'||state.ball.accidental&&canCollect(state.fielders.indexOf(p)));}
 function move(p,dx,dy,dt){
@@ -62,7 +62,7 @@ function move(p,dx,dy,dt){
  const length=Math.hypot(dx,dy);if(!length)return;
  let nextX=clamp(p.x+dx/length*205*dt,40,1060);
  if(!canAdvance(p)){nextX=p.side===1?Math.min(nextX,Math.max(p.x,p.throwLimit)):Math.max(nextX,Math.min(p.x,p.throwLimit));}
- p.x=nextX;p.y=clamp(p.y+dy/length*205*dt,p.elevation>0?75:105,p.elevation>0?100:325);
+ if(Math.abs(nextX-p.x)>.5||Math.abs(dy/length*205*dt)>.5)window.TacoAudio?.play('step');p.x=nextX;p.y=clamp(p.y+dy/length*205*dt,p.elevation>0?75:105,p.elevation>0?100:325);
 }
 function follow(p,dt){if(!p.goal||p.climbing)return;const d=distance(p,p.goal);if(d<5){move(p,p.goal.x-p.x,p.goal.y-p.y,d/205);p.goal=null;}else move(p,p.goal.x-p.x,p.goal.y-p.y,Math.min(dt,d/205));}
 function climb(player){
@@ -72,7 +72,7 @@ function climb(player){
  else if(state.ball.onRoof){p.climbIntent='up';p.goal={x:state.ball.x,y:110};say('Indo ao telhado buscar a bola. A corrida continua!');}
 }
 function updateClimb(p,dt){
- if(p.climbIntent&&!p.goal&&!p.climbing){p.climbing={direction:p.climbIntent,progress:0};p.climbIntent=null;}
+ if(p.climbIntent&&!p.goal&&!p.climbing){window.TacoAudio?.play('climb');p.climbing={direction:p.climbIntent,progress:0};p.climbIntent=null;}
  if(!p.climbing)return;
  const c=p.climbing;c.progress=Math.min(1,c.progress+dt/1.2);
  p.elevation=52*(c.direction==='up'?c.progress:1-c.progress);
@@ -84,7 +84,7 @@ function attemptCatch(i,air=false){
  const ball=state.ball,p=state.fielders[i],speed=Math.hypot(ball.vx,ball.vy,ball.vz);
  const risk=clamp((speed-180)/1200,0,.55);
  if(risk>0&&Math.random()<risk){
-  state.stats.drops++;ball.owner=null;ball.airCatchEligible=false;ball.onRoof=false;
+  window.TacoAudio?.play('drop');state.stats.drops++;ball.owner=null;ball.airCatchEligible=false;ball.onRoof=false;
   ball.slipped=true;ball.vx=ball.vx*.18;ball.vy=ball.vy*.18;ball.vz=-45;ball.z=10;ball.pickupDelay=.55;
   state.phase=ball.kind==='batted'?'loose':'shot';p.goal=null;
   say('A bola escapou das mãos! Caiu — vá buscar de novo.');return false;
@@ -94,7 +94,7 @@ function attemptCatch(i,air=false){
 }
 function collectBall(i){
  if(!canCollect(i))return;
- const p=state.fielders[i],ball=state.ball;
+ const p=state.fielders[i],ball=state.ball;window.TacoAudio?.play('catch');
  state.fielders.forEach(f=>{f.goal=null;f.climbIntent=null;if(ball.kind==='batted')f.throwLimit=f.x;});if(!ball.accidental)p.throwLimit=p.x;
  ball.owner=i;ball.onRoof=false;ball.vx=ball.vy=ball.vz=0;state.phase='ready';state.aiTimer=.35;
  say(p.elevation>0?'Bola recuperada no telhado! Desça para lançar.':'Bola na mão! Pode recuar, mas não ultrapasse a linha da coleta.');
@@ -221,7 +221,7 @@ for(let player=1;player<=2;player++){if(!human(player))continue;const map=player
 [...state.bats,...state.fielders].forEach(p=>follow(p,dt));state.fielders.forEach(p=>updateClimb(p,dt));const ball=state.ball;
 if(ball.owner!==null){const p=state.fielders[ball.owner];ball.x=p.x;ball.y=p.y;ball.z=p.elevation||0;}
 else if(!ball.onRoof){const old={x:ball.x,y:ball.y,z:ball.z};ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;ball.z+=ball.vz*dt;ball.vz-=420*dt;
-if(ball.z<=0){ball.z=0;ball.touchedGround=true;if(Math.abs(ball.vz)>65)ball.vz=-ball.vz*.28;else ball.vz=0;const friction=Math.exp(-(ball.kind==='throw'&&!ball.slipped?.16:2.3)*dt);ball.vx*=friction;ball.vy*=friction;}
+if(ball.z<=0){if(old.z>0&&Math.abs(ball.vz)>35)window.TacoAudio?.play('bounce');ball.z=0;ball.touchedGround=true;if(Math.abs(ball.vz)>65)ball.vz=-ball.vz*.28;else ball.vz=0;const friction=Math.exp(-(ball.kind==='throw'&&!ball.slipped?.16:2.3)*dt);ball.vx*=friction;ball.vy*=friction;}
 if(ball.x<35||ball.x>1065){ball.x=clamp(ball.x,35,1065);ball.vx*=-.65;}if(ball.y<105){if(ball.z>52&&ball.kind==='batted'){state.phase='roof';const house=Math.floor((ball.x+15)/157)*157-15;ball.x=clamp(ball.x,house+10,house+125);ball.y=90;ball.z=52;ball.onRoof=true;ball.vx=ball.vy=ball.vz=0;say('Bola no telhado! Os tacos continuam correndo; a defesa pode subir para buscar.');}if(!ball.onRoof){ball.y=105;ball.vy*=-.6;}}if(ball.y>325){ball.y=325;ball.vy*=-.6;}
 sameSideCollision(old,ball);
 if(state.phase==='shot'){for(let i=0;i<2;i++){const dx=ball.x-old.x,dy=ball.y-old.y,t=clamp(((bases[i]-old.x)*dx+(y-old.y)*dy)/(dx*dx+dy*dy||1),0,1);if(Math.hypot(old.x+t*dx-bases[i],old.y+t*dy-y)<13&&ball.z<20){if(!protectedBase(i)){swap(i);return;}say('A garrafa foi protegida pelo taco!');}}}
@@ -235,7 +235,7 @@ for(let i=0;i<2&&ballNow.owner===null;i++){
  if(ballNow.kind==='batted'&&ballNow.airCatchEligible!==false&&!ballNow.touchedGround&&ballNow.vz<0&&ballNow.z>0&&ballNow.z<=34){if(attemptCatch(i,true))return;break;}
  if(ballNow.z<18&&(ballNow.touchedGround||ballNow.kind!=='batted')){attemptCatch(i);break;}
 }
-if(state.running&&state.bats.every((p,i)=>distance(p,{x:bases[state.expected[i]],y})<24)){if(battingPlayer()===1)state.score=Math.min(100,state.score+10);else state.enemy=Math.min(100,state.enemy+10);state.expected=state.expected.map(i=>1-i);state.swapped=!state.swapped;say('Troca completa! +10 pontos.'+((battingPlayer()===1?state.score:state.enemy)>=100?' Cruze os tacos no meio para vencer!':''));}
+if(state.running&&state.bats.every((p,i)=>distance(p,{x:bases[state.expected[i]],y})<24)){if(battingPlayer()===1)state.score=Math.min(100,state.score+10);else state.enemy=Math.min(100,state.enemy+10);window.TacoAudio?.play('point');state.expected=state.expected.map(i=>1-i);state.swapped=!state.swapped;say('Troca completa! +10 pontos.'+((battingPlayer()===1?state.score:state.enemy)>=100?' Cruze os tacos no meio para vencer!':''));}
 sync();}
 function rect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(x,y,w,h);}
 function line(x,y,a,b,color,width=2){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(a,b);ctx.stroke();}
@@ -290,7 +290,7 @@ document.addEventListener('keyup',e=>{const k=e.key.toLowerCase();keys.delete(k)
 // Only the same-origin hub may suspend/resume this embedded game.
 window.addEventListener('message',event=>{
  if(event.source!==window.parent||event.origin!==window.location.origin||event.data?.type!=='childhoodHub:visibility')return;
- state.hubHidden=event.data.active!==true;keys.clear();state.charges=[null,null];
+ state.hubHidden=event.data.active!==true;window.TacoAudio?.setHidden(state.hubHidden);keys.clear();state.charges=[null,null];
 });
 
 if(window.parent&&window.parent!==window)document.body.classList.add('embedded');
