@@ -73,8 +73,12 @@ node --check game.js
 node --test tests/game-rules.test.cjs
 ```
 
-Os 10 testes da lógica cobrem alcance de lançamento forte, bots sem avanço entre lançamentos, bloqueio/recuo dos dois lados, coleta após nova rebatida, vitória no ar, exclusão de quiques e lançamentos normais, corrida e pontuação durante telhado, subida/descida, recuperação do bot e vitória aos 100 com X.
+Os 13 testes da lógica cobrem alcance de lançamento forte, bots sem avanço entre lançamentos, bloqueio/recuo dos dois lados, coleta após nova rebatida, vitória no ar, exclusão de quiques e lançamentos normais, corrida e pontuação durante telhado, subida/descida, recuperação do bot e vitória aos 100 com X.
 
 Também validado no Chromium: botões de subir/descer, corrida durante telhado, impedimento de lançar do alto, restrição de movimento por teclado, resultado de captura no ar, perspectiva visual e layout móvel. A regressão dos controles de mouse passou com a nova velocidade de lançamento. Ainda falta testar em celular físico.
 
 Hub validado no Chromium: cards e capas carregados, jogos futuros desabilitados, abertura pelo card, tela cheia real e saída, volta e retomada com placar preservado/simulação suspensa, histórico do navegador, link direto, layout móvel e mensagem de alternativa quando tela cheia é recusada.
+
+A interface do Taco agora mostra placar e botões de ajuda/configuração no topo, campo e ações antes dos ajustes de direção/força. As instruções ficam somente no diálogo “Como jogar”, que pode ser fechado; configurações ficam em um diálogo separado. Subir/descer tem botões visíveis para ambos os jogadores e se habilita para a equipe da bola quando a ação é possível.
+
+A garrafa volta a ficar em pé imediatamente ao trocar de equipes. A velocidade da bola influencia a chance de escapar na coleta: bolas lentas são seguras; bolas rápidas têm chance de erro limitada a 55%. Se escapar no ar, não conta como vitória; a bola cai com velocidade reduzida e pode ser buscada novamente. A coleta parada no telhado continua segura. Há testes determinísticos tanto para sucesso quanto para falha dessas tentativas.

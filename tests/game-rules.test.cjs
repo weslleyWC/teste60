@@ -16,7 +16,7 @@ function game(mode = 'local', role = 'bat') {
     });
     return nodes.get(id);
   }
-  const sandbox = {document: {getElementById: node, querySelector: selector => node(selector), querySelectorAll: () => [], addEventListener() {}}, window: {addEventListener() {}}, requestAnimationFrame() {}, Math};
+  const sandbox = {document: {getElementById: node, querySelector: selector => node(selector), querySelectorAll: () => [], addEventListener() {}}, window: {addEventListener() {}}, requestAnimationFrame() {}, Math: Object.assign(Object.create(Math), {random: () => .99})};
   vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'game.js'), 'utf8'), sandbox);
   return source => vm.runInContext(source, sandbox);
@@ -122,4 +122,32 @@ test('roof-running victory still requires reaching 100 and crossing the bats', (
   run('cross(1);for(let i=0;i<100;i++)update(.02)');
   assert.equal(run('state.phase'), 'won');
   assert.equal(run('state.winner'), true);
+});
+
+test('bottles are restored upright when the teams switch', () => {
+  const run = game();
+  run('state.broken=1;swap(1)');
+  assert.equal(run('state.broken'), -1);
+  assert.equal(run('state.role'), 'ball');
+});
+
+test('fast catches can slip without granting aerial victory, then be retrieved after falling', () => {
+  const run = game();
+  run("Math.random=()=>0;state.phase='loose';state.ball={x:550,y:226,z:25,vx:600,vy:0,vz:-80,owner:null,kind:'batted',touchedGround:false};state.fielders[0].x=550;attemptCatch(0,true)");
+  assert.notEqual(run('state.phase'), 'won');
+  assert.equal(run('state.ball.owner'), null);
+  assert.equal(run('state.stats.drops'), 1);
+  assert.equal(run('state.ball.airCatchEligible'), false);
+  run('for(let i=0;i<40;i++)update(.02)');
+  assert.equal(run('state.ball.touchedGround'), true);
+  run('state.fielders[0].x=state.ball.x;state.fielders[0].y=state.ball.y;state.ball.vx=state.ball.vy=state.ball.vz=0;update(.02)');
+  assert.equal(run('state.ball.owner'), 0);
+});
+
+test('slow balls are collected reliably and high speed increases the chance of a slip', () => {
+  const run = game();
+  run("Math.random=()=>.2;state.ball={x:550,y:226,z:0,vx:50,vy:0,vz:0,owner:null,kind:'batted',touchedGround:true};attemptCatch(0)");
+  assert.equal(run('state.ball.owner'), 0);
+  run("state.ball={x:550,y:226,z:0,vx:1000,vy:0,vz:0,owner:null,kind:'throw',touchedGround:true};attemptCatch(0)");
+  assert.equal(run('state.ball.owner'), null);
 });
