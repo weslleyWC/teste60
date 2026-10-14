@@ -84,3 +84,9 @@ A interface do Taco agora mostra placar e botões de ajuda/configuração no top
 A garrafa volta a ficar em pé imediatamente ao trocar de equipes. A velocidade da bola influencia a chance de escapar na coleta: bolas lentas são seguras; bolas rápidas têm chance de erro limitada a 55%. Se escapar no ar, não conta como vitória; a bola cai com velocidade reduzida e pode ser buscada novamente. A coleta parada no telhado continua segura. Há testes determinísticos tanto para sucesso quanto para falha dessas tentativas.
 
 Uma rebatida da direita só pode ser recolhida pelo lançador da esquerda; uma rebatida da esquerda, só pelo da direita. O lado é registrado no momento da rebatida e continua valendo após os batedores trocarem de círculo. A restrição vale para coleta no chão, captura no ar, bola que escapou e recuperação no telhado. Os bots buscam com o lançador permitido, mesmo quando o colega está mais perto. Quatro testes adicionais cobrem a seleção do lado, coleta/captura, bloqueio na simulação e seleção do bot no chão/telhado.
+
+## Gráficos
+
+`visuals.js` desenha o cenário e os personagens em Canvas: telhados com textura, janelas e jardins, asfalto, luz de fim de tarde, sombras, garrafas com volume, uniformes numerados e animação de passos. A bola tem sombreamento e rastro; rebatidas e corridas geram partículas. O cenário é pré-renderizado e os efeitos têm um limite de partículas. A resolução do Canvas acompanha a tela até 2×, mantendo as coordenadas dos controles.
+
+Os efeitos usam ruído próprio, separado da aleatoriedade de pegadas e bots. Validado no Chromium em resolução 2×: rebatida/corrida, subida e recuperação no telhado, layout móvel, ausência de erros JavaScript e preservação da aleatoriedade da lógica. Os 17 testes das regras continuam passando.
