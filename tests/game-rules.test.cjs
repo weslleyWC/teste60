@@ -151,3 +151,50 @@ test('slow balls are collected reliably and high speed increases the chance of a
   run("state.ball={x:550,y:226,z:0,vx:1000,vy:0,vz:0,owner:null,kind:'throw',touchedGround:true};attemptCatch(0)");
   assert.equal(run('state.ball.owner'), null);
 });
+
+test('the batter position at impact selects the opposite collector, even after exchanging circles', () => {
+  for (const [x, expected] of [[910, 0], [190, 1]]) {
+    const run = game();
+    run(`state.bats[1].x=${x};state.phase='shot';state.ball={x:${x},y:226,z:0,vx:500,vy:0,vz:0,owner:null,kind:'throw'};bat(1)`);
+    assert.equal(run('state.ball.collector'), expected);
+    run('state.bats.reverse()');
+    assert.equal(run('state.ball.collector'), expected);
+  }
+});
+
+test('only the opposite collector can retrieve a ground ball or attempt an aerial catch', () => {
+  for (const collector of [0, 1]) {
+    const run = game();
+    run(`state.ball={x:550,y:226,z:0,vx:0,vy:0,vz:0,owner:null,kind:'batted',collector:${collector},touchedGround:true};collectBall(${1-collector})`);
+    assert.equal(run('state.ball.owner'), null);
+    run(`collectBall(${collector})`);
+    assert.equal(run('state.ball.owner'), collector);
+    run(`state.ball={x:550,y:226,z:25,vx:0,vy:0,vz:-40,owner:null,kind:'batted',collector:${collector},touchedGround:false};attemptCatch(${1-collector},true)`);
+    assert.notEqual(run('state.phase'), 'won');
+    run(`attemptCatch(${collector},true)`);
+    assert.equal(run('state.phase'), 'won');
+  }
+});
+
+test('the wrong nearby fielder cannot steal pickup in the simulation', () => {
+  const run = game();
+  run("state.phase='loose';state.ball={x:990,y:226,z:0,vx:0,vy:0,vz:0,owner:null,kind:'batted',collector:0,touchedGround:true};update(.02)");
+  assert.equal(run('state.ball.owner'), null);
+  run('state.fielders[0].x=990;update(.02)');
+  assert.equal(run('state.ball.owner'), 0);
+});
+
+test('roof climb and bot pursuit select the eligible collector instead of the closest one', () => {
+  const local = game();
+  local("state.phase='roof';state.ball={x:990,y:90,z:52,vx:0,vy:0,vz:0,owner:null,kind:'batted',collector:0,onRoof:true};state.selected[1]=1;climb(2)");
+  assert.equal(local('state.fielders[1].climbIntent'), undefined);
+  local('state.selected[1]=0;climb(2)');
+  assert.equal(local('state.fielders[0].climbIntent'), 'up');
+  const bot = game('solo');
+  bot("state.phase='roof';state.ball={x:990,y:90,z:52,vx:0,vy:0,vz:0,owner:null,kind:'batted',collector:0,onRoof:true};ai(.02)");
+  assert.equal(bot('state.selected[1]'), 0);
+  assert.equal(bot('state.fielders[0].climbIntent'), 'up');
+  bot("state.phase='loose';state.ball.onRoof=false;state.ball.y=226;state.ball.z=0;state.ball.touchedGround=true;state.fielders.forEach(p=>{p.goal=null;p.climbIntent=null});ai(.02)");
+  assert.equal(bot('state.fielders[1].goal'), null);
+  assert.notEqual(bot('state.fielders[0].goal'), null);
+});

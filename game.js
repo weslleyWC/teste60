@@ -13,9 +13,10 @@ function selected(player){return characters(player)[state.selected[player-1]];}
 function blocked(){return state.hubHidden||state.paused||ui('settings').open||ui('rules').open||ui('result').open||['won','crossing'].includes(state.phase);}
 function reset(){if(ui('result').open)ui('result').close();keys.clear();state={mode:ui('mode').value,team:ui('team').value,role:ui('startRole').value,score:0,enemy:0,stats:{hits:0,swaps:0,drops:0},phase:'ready',paused:false,selected:[0,0],charges:[null,null],target:1,swapped:false,aiTimer:1.5,swing:0,cross:0,broken:-1};placePlayers();say('Movimente-se, escolha sua jogada e proteja as garrafas.');sync();document.querySelector('.game').classList.remove('paused');}
 function placePlayers(){state.bats=bases.map(x=>({x,y,goal:null}));state.fielders=[{x:110,y,goal:null,side:1,throwLimit:110,elevation:0},{x:990,y,goal:null,side:-1,throwLimit:990,elevation:0}];state.ball={x:110,y,z:0,vx:0,vy:0,vz:0,owner:0,kind:'throw',touchedGround:false};state.selected[fieldingPlayer()-1]=0;state.selected[battingPlayer()-1]=1;state.aim={x:910,y};state.expected=[1,0];state.running=false;state.charges=[null,null];}
+function canCollect(i){return state.ball.kind!=='batted'||state.ball.collector===undefined||state.ball.collector===i;}
 function protectedBase(i){return state.bats.some(p=>distance(p,{x:bases[i],y})<34);}
 function sync(){const local=state.mode==='local',bp=battingPlayer();ui('localControls').hidden=!local;ui('mousePlayerLabel').hidden=!local;ui('skill2').hidden=!local;ui('teamLabel').textContent=local?'JOGADOR 1':'SUA DUPLA';ui('enemyLabel').textContent=local?'JOGADOR 2':'DUPLA DA RUA';ui('score').textContent=state.score;ui('enemyScore').textContent=state.enemy;ui('progress').style.width=state.score+'%';ui('phase').textContent=state.phase==='won'?'Fim de partida':local?`J${bp}: tacos · J${3-bp}: bola`:bp===1?'Sua dupla está com os tacos':'Sua dupla está com a bola';for(const [player,prefix]of [[1,''],[2,'p2']]){const bat=player===bp;ui(prefix?prefix+'hit':'hit').textContent=(prefix?'J2 · ':'')+(bat?'Rebater':'Lançar');ui(prefix?prefix+'run':'run').disabled=!bat||!state.running;ui(prefix?prefix+'cross':'cross').disabled=!bat||(player===1?state.score:state.enemy)<100||state.phase==='won';ui(prefix?prefix+'aim':'aim').hidden=false;ui(prefix?prefix+'aim':'aim').disabled=bat;}
-ui('aim').textContent='Mirar: '+(state.target?'direita':'esquerda')+' ⇄';for(const [player,id]of [[1,'climb'],[2,'p2climb']]){const p=selected(player);ui(id).hidden=false;ui(id).textContent=(player===2?'J2 · ':'')+(p.elevation>0?'Descer do telhado':'Subir no telhado');ui(id).disabled=player!==fieldingPlayer()||blocked()||(!state.ball.onRoof&&!p.elevation);}const exposed=!protectedBase(0)||!protectedBase(1);ui('danger').textContent=exposed?'⚠ Garrafa desprotegida!':'Garrafas protegidas';ui('danger').className=exposed?'exposed':'';ui('pause').textContent=state.paused?'Continuar':'Pausar';for(let i=1;i<=2;i++){ui('angleValue'+i).textContent=ui('angle'+i).value+'°';ui('powerValue'+i).textContent=ui('power'+i).value+'%';}}
+ui('aim').textContent='Mirar: '+(state.target?'direita':'esquerda')+' ⇄';for(const [player,id]of [[1,'climb'],[2,'p2climb']]){const p=selected(player);ui(id).hidden=false;ui(id).textContent=(player===2?'J2 · ':'')+(p.elevation>0?'Descer do telhado':'Subir no telhado');ui(id).disabled=player!==fieldingPlayer()||(!p.elevation&&!canCollect(state.selected[player-1]))||blocked()||(!state.ball.onRoof&&!p.elevation);}const exposed=!protectedBase(0)||!protectedBase(1);ui('danger').textContent=exposed?'⚠ Garrafa desprotegida!':'Garrafas protegidas';ui('danger').className=exposed?'exposed':'';ui('pause').textContent=state.paused?'Continuar':'Pausar';for(let i=1;i<=2;i++){ui('angleValue'+i).textContent=ui('angle'+i).value+'°';ui('powerValue'+i).textContent=ui('power'+i).value+'%';}}
 function switchPlayer(player){if(blocked()||!human(player))return;state.selected[player-1]=1-state.selected[player-1];say('Personagem '+(state.selected[player-1]+1)+' selecionado.');}
 function aim(player){if(blocked()||player!==fieldingPlayer())return;state.target=1-state.target;state.aim={x:bases[state.target],y};say('Mira na garrafa '+(state.target+1)+'.');}
 function beginCharge(player){if(blocked()||!human(player))return;if(player===battingPlayer()){bat(player);return;}if(state.ball.owner!==state.selected[player-1]){say('Pegue a bola ou selecione o colega que está com ela.');return;}state.charges[player-1]=0;}
@@ -31,7 +32,7 @@ function throwBall(player,power){
  const speed=420+clamp(power,0,1)*800;
  state.ball={x:p.x,y:p.y,z:4,vx:dx/d*speed,vy:dy/d*speed,vz:0,owner:null,pickupDelay:.12,kind:'throw',touchedGround:false};state.phase='shot';say('Lançamento! Direção e força estão nas suas mãos.');
 }
-function bat(player){const ball=state.ball,p=selected(player);state.swing=.25;if(state.phase!=='shot'||ball.z>32||distance(ball,p)>62){say('Aproxime o taco da bola e acerte o tempo da rebatida.');return;}const power=Number(ui('power'+player).value)/100,angle=Number(ui('angle'+player).value)*Math.PI/180,side=p.x>550?-1:1;const timing=1-distance(ball,p)/100;ball.vx=side*Math.cos(angle)*(210+power*540)*timing;ball.vy=Math.sin(angle)*(210+power*540)*timing;ball.vz=110+power*150;ball.z=8;ball.owner=null;ball.kind='batted';ball.touchedGround=false;ball.airCatchEligible=true;ball.onRoof=false;ball.pickupDelay=.12;state.phase='loose';state.stats.hits++;state.running=true;say('Rebatida! Corra — eles precisam buscar a bola onde ela cair.');}
+function bat(player){const ball=state.ball,p=selected(player);state.swing=.25;if(state.phase!=='shot'||ball.z>32||distance(ball,p)>62){say('Aproxime o taco da bola e acerte o tempo da rebatida.');return;}const power=Number(ui('power'+player).value)/100,angle=Number(ui('angle'+player).value)*Math.PI/180,side=p.x>550?-1:1;const timing=1-distance(ball,p)/100;ball.vx=side*Math.cos(angle)*(210+power*540)*timing;ball.vy=Math.sin(angle)*(210+power*540)*timing;ball.vz=110+power*150;ball.z=8;ball.owner=null;ball.kind='batted';ball.collector=p.x>550?0:1;state.fielders.forEach(f=>f.goal=null);ball.touchedGround=false;ball.airCatchEligible=true;ball.onRoof=false;ball.pickupDelay=.12;state.phase='loose';state.stats.hits++;state.running=true;say('Rebatida! Só o lançador da '+(ball.collector===0?'esquerda':'direita')+' pode buscar. Corra!');}
 function run(player){if(blocked()||player!==battingPlayer()||!state.running)return;state.bats.forEach((p,i)=>p.goal={x:bases[state.expected[i]],y});state.running=true;say('Dupla correndo! Você pode mudar o caminho com o movimento livre.');}
 function cross(player){if(blocked()||player!==battingPlayer()||(player===1?state.score:state.enemy)<100)return;state.phase='crossing';state.cross=0;state.bats.forEach((p,i)=>p.goal={x:530+i*40,y});say('Indo ao meio cruzar os tacos!');}
 function swap(i){state.stats.swaps++;state.role=state.role==='bat'?'ball':'bat';state.phase='ready';state.broken=-1;state.aiTimer=1.5;placePlayers();say('Garrafa derrubada! Troca de função; os pontos continuam.');sync();}
@@ -48,7 +49,7 @@ function move(p,dx,dy,dt){
 function follow(p,dt){if(!p.goal||p.climbing)return;const d=distance(p,p.goal);if(d<5){move(p,p.goal.x-p.x,p.goal.y-p.y,d/205);p.goal=null;}else move(p,p.goal.x-p.x,p.goal.y-p.y,Math.min(dt,d/205));}
 function climb(player){
  if(blocked()||player!==fieldingPlayer())return;
- const p=selected(player);if(p.climbing)return;
+ const p=selected(player);if(p.climbing)return;if(!p.elevation&&!canCollect(state.selected[player-1])){say('Essa rebatida só pode ser recolhida pelo lançador do lado contrário. Troque de personagem.');return;}
  if(p.elevation>0){p.climbIntent='down';p.goal={x:p.x,y:100};}
  else if(state.ball.onRoof){p.climbIntent='up';p.goal={x:state.ball.x,y:110};say('Indo ao telhado buscar a bola. A corrida continua!');}
 }
@@ -61,6 +62,7 @@ function updateClimb(p,dt){
  if(c.progress===1){p.climbing=null;if(c.direction==='up'&&state.ball.onRoof)p.goal={x:state.ball.x,y:state.ball.y};}
 }
 function attemptCatch(i,air=false){
+ if(!canCollect(i))return false;
  const ball=state.ball,p=state.fielders[i],speed=Math.hypot(ball.vx,ball.vy,ball.vz);
  const risk=clamp((speed-180)/1200,0,.55);
  if(risk>0&&Math.random()<risk){
@@ -73,6 +75,7 @@ function attemptCatch(i,air=false){
  return true;
 }
 function collectBall(i){
+ if(!canCollect(i))return;
  const p=state.fielders[i],ball=state.ball;
  state.fielders.forEach(f=>{f.goal=null;f.climbIntent=null;if(ball.kind==='batted')f.throwLimit=f.x;});p.throwLimit=p.x;
  ball.owner=i;ball.onRoof=false;ball.vx=ball.vy=ball.vz=0;state.phase='ready';state.aiTimer=.35;
@@ -87,14 +90,14 @@ function ai(dt){
    if(p.elevation>0){if(!p.climbing&&!p.climbIntent)climb(2);}
    else if(!p.climbing&&state.aiTimer<=0){const open=bases.findIndex((_,i)=>!protectedBase(i));state.aim={x:bases[open<0?(p.side===1?1:0):open],y};throwBall(2,.9+Math.random()*.1);state.aiTimer=.9;}
   }else if(ball.onRoof){
-   const i=distance(state.fielders[0],ball)<distance(state.fielders[1],ball)?0:1;state.selected[1]=i;
+   const i=ball.collector===undefined?(distance(state.fielders[0],ball)<distance(state.fielders[1],ball)?0:1):ball.collector;state.selected[1]=i;
    const p=state.fielders[i];if(!p.elevation&&!p.climbing&&!p.climbIntent)climb(2);
   }else if(ball.kind==='batted'||Math.hypot(ball.vx,ball.vy)<90){
    // Predict where a descending ball will be within reach of the hands.
    const disc=ball.vz*ball.vz+840*(ball.z-28);
    const t=!ball.touchedGround&&disc>=0?Math.max(0,(ball.vz+Math.sqrt(disc))/420):0;
    const target={x:clamp(ball.x+ball.vx*t,40,1060),y:clamp(ball.y+ball.vy*t,105,325)};
-   const candidates=state.fielders.map((p,i)=>({p,i,d:distance(p,target)})).filter(({p})=>canAdvance(p)||(target.x-p.throwLimit)*p.side<=0);
+   const candidates=state.fielders.map((p,i)=>({p,i,d:distance(p,target)})).filter(({p,i})=>canCollect(i)&&(canAdvance(p)||(target.x-p.throwLimit)*p.side<=0));
    candidates.sort((a,b)=>a.d-b.d);if(candidates.length)candidates[0].p.goal=target;
   }
  }else{
@@ -115,7 +118,7 @@ if(state.phase==='shot'){for(let i=0;i<2;i++){const dx=ball.x-old.x,dy=ball.y-ol
 const ballNow=state.ball;
 ballNow.pickupDelay=Math.max(0,(ballNow.pickupDelay||0)-dt);
 for(let i=0;i<2&&ballNow.owner===null;i++){
- const p=state.fielders[i];if(p.climbing||ballNow.pickupDelay>0||distance(p,ballNow)>22)continue;
+ const p=state.fielders[i];if(!canCollect(i)||p.climbing||ballNow.pickupDelay>0||distance(p,ballNow)>22)continue;
  if(ballNow.onRoof){if(p.elevation===52)collectBall(i);continue;}
  if(p.elevation>0)continue;
  if(ballNow.kind==='batted'&&ballNow.airCatchEligible!==false&&!ballNow.touchedGround&&ballNow.vz<0&&ballNow.z>0&&ballNow.z<=34){if(attemptCatch(i,true))return;break;}
